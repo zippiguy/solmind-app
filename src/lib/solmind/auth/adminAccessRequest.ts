@@ -108,6 +108,19 @@ export type AdminAccessResult = {
   allowed: boolean;
 };
 
+// Internal server-only result for composition roots that must pass the trusted
+// Admin actor to a database function. The actor id is never serialized by the
+// public /admin access probe; resolveAdminAccessForRequest below deliberately
+// projects this result back to the exact one-boolean browser contract.
+export type AdminActorResult =
+  | Readonly<{
+      allowed: true;
+      actorUserAccountId: string;
+    }>
+  | Readonly<{
+      allowed: false;
+    }>;
+
 // Factory ports, injectable for deterministic tests.
 //   - createPrincipalSource: builds the request-auth identity port (WHO) from the
 //     injected cookie accessor. Defaults to the real @supabase/ssr-backed adapter.
@@ -162,9 +175,9 @@ function toAdminAccessDecisionEvent(
 // persisted. Every other outcome -- including any thrown principal-source /
 // auth-source construction or load error, an unavailable audit writer, or a failed
 // required audit write -- returns { allowed: false } with no detail.
-export async function resolveAdminAccessForRequest(
+export async function resolveAdminActorForRequest(
   deps: AdminAccessRequestDependencies,
-): Promise<AdminAccessResult> {
+): Promise<AdminActorResult> {
   // The bounded, value-free operational signal (default no-op). Guarded so a
   // throwing injected signal can never flip an outcome, leak, or route into the
   // fail-closed catch below (which would mint a false failure row).
@@ -268,7 +281,7 @@ export async function resolveAdminAccessForRequest(
         // row (an audit-write-failure-induced deny stays row-free by design);
         // the bounded signal is the only side channel.
         signalAuditWriteFailure();
-        return { allowed: false };
+        return Object.freeze({ allowed: false });
       }
 
       const allowDecisionPersisted = await persistBankedAuditEvent(
@@ -280,10 +293,10 @@ export async function resolveAdminAccessForRequest(
         // the guarded read occurred -- not false attribution). No additional
         // deny/failure row is written.
         signalAuditWriteFailure();
-        return { allowed: false };
+        return Object.freeze({ allowed: false });
       }
 
-      return { allowed: true };
+      return Object.freeze({ allowed: true, actorUserAccountId });
     }
 
     // Genuine DENY (verified non-Admin, null principal, or an inner resolution
@@ -291,7 +304,7 @@ export async function resolveAdminAccessForRequest(
     // opaque deny decision row (system context, null actor). The outcome never
     // changes and no guarded-read row is attempted (AUTH-RLS-DEC-029 deny path).
     await persistBestEffortAuditEvent(toAdminAccessDecisionEvent(result));
-    return { allowed: false };
+    return Object.freeze({ allowed: false });
   } catch {
     // Fail closed: swallow any REQUEST-PATH exception and deny. This catch covers
     // genuine construction/factory exceptions raised in this composition root (for
@@ -306,6 +319,15 @@ export async function resolveAdminAccessForRequest(
     // re-break fail-closed or leak. The outward result is always exactly
     // { allowed: false } with no reason or error detail.
     await persistBestEffortAuditEvent(createAuthResolutionFailureEvent());
-    return { allowed: false };
+    return Object.freeze({ allowed: false });
   }
+}
+
+// Preserve the banked opaque /admin access-probe contract exactly. Only a
+// trusted server composition root imports resolveAdminActorForRequest directly.
+export async function resolveAdminAccessForRequest(
+  deps: AdminAccessRequestDependencies,
+): Promise<AdminAccessResult> {
+  const result = await resolveAdminActorForRequest(deps);
+  return Object.freeze({ allowed: result.allowed });
 }

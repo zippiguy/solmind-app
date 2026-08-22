@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  resolveAdminActorForRequest,
   resolveAdminAccessForRequest,
   type AdminAccessResult,
 } from "../adminAccessRequest";
@@ -249,6 +250,37 @@ describe("resolveAdminAccessForRequest - opaque allow", () => {
 
     expect(result).toEqual({ allowed: true });
     expectOpaque(result);
+  });
+
+  it("returns the trusted actor only through the internal server composition result", async () => {
+    const { executor } = mockExecutor(chainTables("admin"));
+    const recorder = recordingAuditWriter();
+
+    const actorResult = await resolveAdminActorForRequest({
+      cookies: cookies(),
+      createPrincipalSource: () =>
+        createInMemoryRequestAuthPrincipalSource(ADMIN_PRINCIPAL),
+      createAuthSource: ({ now }) =>
+        createAdminAuthSourceFromExecutor({ executor, now }),
+      now: nowProvider,
+      createAuditEventWriter: () => recorder.writer,
+    });
+
+    expect(actorResult).toEqual({
+      allowed: true,
+      actorUserAccountId: ACCOUNT_ID,
+    });
+    expect(Object.keys(actorResult).sort()).toEqual([
+      "actorUserAccountId",
+      "allowed",
+    ]);
+
+    const outwardResult = await callHelperWith({
+      principal: ADMIN_PRINCIPAL,
+      resultByTable: chainTables("admin"),
+    });
+    expect(outwardResult.result).toEqual({ allowed: true });
+    expectOpaque(outwardResult.result);
   });
 });
 
