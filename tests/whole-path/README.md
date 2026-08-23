@@ -67,3 +67,26 @@ digests prevent two roles from silently sharing one authenticated identity.
 Concurrent close calls share one attempt, and a failed close remains retryable. The later
 outer runner still owns the read-only authenticated-role proof, scenario
 navigation, production-server lifecycle, and unconditional fixture teardown.
+
+## Whole-path lifecycle orchestrator
+
+The test-only orchestrator composes the safety kernel, local Auth fixture, five
+in-memory Playwright contexts, one scenario callback, and cleanup in one closed
+lifecycle. It reconstructs one stable environment from the already-validated
+safety configuration so the fixture and browser layers cannot observe different
+gate or origin values.
+
+Browser contexts close first, then the owned browser closes, and only after the
+callback returns does the fixture owner clear sessions, delete the exact Auth
+users, and perform the final database reset. Cleanup failure dominates scenario
+failure, and callers receive only fixed value-free error categories.
+
+The orchestrator still does not load secrets itself, start Supabase or Next.js,
+launch a browser without an injected owner, write credentials or browser state,
+implement product assertions, or authorize effects. A later effectful driver
+must supply those dependencies after the exact safety gates and current workflow
+authority are present.
+
+`createBrowser` owns any partially allocated browser process until it resolves
+with a complete browser handle. If that factory rejects, it must settle
+everything it created first because the orchestrator has no handle to close.
