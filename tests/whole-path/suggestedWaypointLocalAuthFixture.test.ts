@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   runWithSuggestedWaypointLocalAuthFixture,
+  type SuggestedWaypointLocalFixture,
   type SuggestedWaypointLocalFixtureDependencies,
   type SuggestedWaypointRoleSession,
 } from "./suggestedWaypointLocalAuthFixture";
@@ -84,7 +85,9 @@ function harness(failAt?: string) {
 
 function options(
   dependencies: SuggestedWaypointLocalFixtureDependencies,
-  runScenario = vi.fn(async () => "scenario-complete"),
+  runScenario: (
+    fixture: SuggestedWaypointLocalFixture,
+  ) => Promise<string> = vi.fn(async () => "scenario-complete"),
 ) {
   return {
     environment: environment(),
@@ -120,7 +123,7 @@ describe("Suggested Waypoint local Auth fixture lifecycle", () => {
 
   it("runs five isolated actors and always cleans them in reverse order", async () => {
     const { events, dependencies } = harness();
-    const runScenario = vi.fn(async (fixture) => {
+    const runScenario = vi.fn(async (fixture: SuggestedWaypointLocalFixture) => {
       expect(fixture.actors.map((actor) => actor.role)).toEqual(ROLES);
       expect(new Set(fixture.actors.map((actor) => actor.session)).size).toBe(5);
       expect(fixture.actors.every((actor) => !("authUserId" in actor))).toBe(true);

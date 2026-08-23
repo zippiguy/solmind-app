@@ -47,3 +47,23 @@ product route, deliver a Suggested Waypoint, or claim the Lane G whole-path
 proof. The later outer runner must inject the local reset and stdin-only SQL
 effects, keep all credentials and cookie values in process memory, and emit
 only fixed value-free result categories.
+
+## In-memory Playwright session seam
+
+The test-only Playwright seam converts the five fixture-owned SSR cookie jars
+into five distinct browser contexts without a storage-state file. It rechecks
+the exact HTTP `127.0.0.1` application origin and accepts only exact-host,
+non-secure loopback cookies. It preserves every active chunk name and value,
+normalizes only browser-usable Lax and Strict SameSite values, derives expiry only from
+a positive `maxAge`, and rejects Domain, Partitioned, malformed, expired, or
+ambiguous cookie options before a context is created.
+
+The returned bundle owns all five contexts and closes them in reverse order.
+It bounds each fixture session to 16 cookie chunks, 256-character names, and
+8,192-character values. It emits only fixed failure categories and never writes
+cookies, tokens, Auth UUIDs, storage state, traces, screenshots, or other
+protected values. Distinct role-session objects and distinct in-memory cookie-set
+digests prevent two roles from silently sharing one authenticated identity.
+Concurrent close calls share one attempt, and a failed close remains retryable. The later
+outer runner still owns the read-only authenticated-role proof, scenario
+navigation, production-server lifecycle, and unconditional fixture teardown.
