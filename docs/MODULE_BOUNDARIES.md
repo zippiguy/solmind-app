@@ -660,6 +660,23 @@ blank-draft compose, delete, correction, or withdrawal caller, delivery
 scheduler, Explorer comparison/adoption/response command, provider, deployment,
 or real-user activation.
 
+The test-only Suggested Waypoint whole-path safety kernel in
+`tests/whole-path/suggestedWaypointWholePathSafety.ts` is an effect-free gate
+for the future `CARRY-001` / `RPR-011` local authenticated runner. Before any
+later runner may inspect a credential or create a local fixture, the kernel
+requires two exact local-effect interlocks and accepts only project `solmind-app`,
+the literal loopback API on `54321`, database port `54322`, a separately owned
+loopback application port, one bounded run identity, and five closed synthetic
+role labels covering both unrelated-role directions plus one ended actor. It
+derives reserved-domain addresses rather than accepting
+free-form recipients. It does not construct a client, read a key, create an
+Auth principal, write a cookie or file, start a process, touch a database, or
+contact a provider. The code-visible interlock values grant no authority and
+cannot replace the active workflow or current human authorization. Auth
+fixture lifecycle, isolated role sessions, whole-path
+execution, unconditional teardown, zero-residue proof, and final local reset
+remain separate test-infrastructure owners.
+
 The S03 Guide entry boundary also owns one feature-specific Suggested Waypoint
 relationship selector. Its forward-only migration exposes only active
 relationship ID, Explorer display name, relationship creation time, and
